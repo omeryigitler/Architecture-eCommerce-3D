@@ -80,7 +80,7 @@ function createWoodTexture() {
 
 // --- 3D Model Component ---
 function Model() {
-  const { scene } = useGLTF(modelUrl);
+  const { scene } = useGLTF(modelUrl || '/model.glb');
   
   const processedScene = useMemo(() => {
     const cloned = scene.clone(true);
@@ -186,8 +186,6 @@ function Model() {
     </group>
   );
 }
-
-useGLTF.preload(modelUrl);
 
 function CanvasLoader() {
   return (
