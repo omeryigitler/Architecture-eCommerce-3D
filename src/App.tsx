@@ -187,6 +187,13 @@ function Model() {
   );
 }
 
+try {
+  useGLTF.preload(modelUrl);
+  useGLTF.preload('/model.glb');
+} catch (e) {
+  // Preload fallback ignore
+}
+
 function CanvasLoader() {
   return (
     <Html center>
