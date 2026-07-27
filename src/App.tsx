@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { ErrorBoundary } from 'react-error-boundary';
 import dayImage from './assets/images/day.png';
 import nightImage from './assets/images/night.png';
+import modelUrl from './assets/model.glb';
 
 // --- Fallback 3D Component ---
 function FallbackShape() {
@@ -79,7 +80,7 @@ function createWoodTexture() {
 
 // --- 3D Model Component ---
 function Model() {
-  const { scene } = useGLTF('/model.glb');
+  const { scene } = useGLTF(modelUrl);
   
   const processedScene = useMemo(() => {
     const cloned = scene.clone(true);
@@ -185,6 +186,8 @@ function Model() {
     </group>
   );
 }
+
+useGLTF.preload(modelUrl);
 
 function CanvasLoader() {
   return (
