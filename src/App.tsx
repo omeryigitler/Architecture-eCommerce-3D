@@ -11,9 +11,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, PresentationControls, ContactShadows, useGLTF, Center, Html, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { ErrorBoundary } from 'react-error-boundary';
-import dayImage from './assets/images/day.png';
-import nightImage from './assets/images/night.png';
-import modelUrl from './assets/model.glb';
+const dayImage = '/day.png';
+const nightImage = '/night.png';
+const modelUrl = '/model.glb';
 
 // --- Fallback 3D Component ---
 function FallbackShape() {
