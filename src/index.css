@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --font-poly: "Poly", serif;
+  --font-inter: "Inter", sans-serif;
+  --color-brand-green: #104C3F;
+  --color-brand-orange: #F38B42;
+}
+
+body {
+  font-family: var(--font-inter);
+  background-color: #E2E8F0; /* Light gray background to show the card shadow */
+}
