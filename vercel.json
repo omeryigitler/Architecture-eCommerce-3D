@@ -1,30 +1,7 @@
 {
-  "headers": [
-    {
-      "source": "/model.glb",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "model/gltf-binary"
-        },
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-store, max-age=0"
-        }
-      ]
-    }
-  ],
   "rewrites": [
     {
-      "source": "/model.glb",
-      "destination": "https://drive.google.com/uc?export=download&id=1pLkqtNjGOBX4OuMwi9xz587PfFr9szNd"
-    },
-    {
-      "source": "/((?!.*\\.).*)",
+      "source": "/((?!api/|api$|.*\\.).*)",
       "destination": "/index.html"
     }
   ]
