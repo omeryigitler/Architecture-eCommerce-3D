@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/assets/(.*)\\.glb",
+      "source": "/assets/model.glb",
       "headers": [
         {
           "key": "Content-Type",
@@ -13,12 +13,12 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "no-store, max-age=0"
         }
       ]
     },
     {
-      "source": "/assets/(.*)\\.(png|jpg|jpeg|svg|webp|ico)",
+      "source": "/assets/(day|night).png",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
@@ -26,12 +26,24 @@
         },
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "no-store, max-age=0"
         }
       ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/assets/day-:hash.png",
+      "destination": "/assets/day.png"
+    },
+    {
+      "source": "/assets/night-:hash.png",
+      "destination": "/assets/night.png"
+    },
+    {
+      "source": "/assets/model-:hash.glb",
+      "destination": "/assets/model.glb"
+    },
     {
       "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
