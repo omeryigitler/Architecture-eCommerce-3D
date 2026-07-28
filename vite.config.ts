@@ -5,8 +5,8 @@ import {defineConfig} from 'vite';
 
 const publicAssetUrlPlugin = () => {
   const assetUrls: Record<string, string> = {
-    './assets/day.png': '/assets/day.png',
-    './assets/night.png': '/assets/night.png',
+    './assets/day.png': '/new-gunduz-day (1).png',
+    './assets/night.png': '/new-gunduz-day (2).png',
     './assets/model.glb': '/assets/model.glb',
   };
 
