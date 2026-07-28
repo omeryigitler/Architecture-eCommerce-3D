@@ -7,7 +7,7 @@ const publicAssetUrlPlugin = () => {
   const assetUrls: Record<string, string> = {
     './assets/day.png': '/new-gunduz-day (1).png',
     './assets/night.png': '/new-gunduz-day (2).png',
-    './assets/model.glb': '/model.glb',
+    './assets/model.glb': '/api/model',
   };
 
   const virtualPrefix = '\0public-asset-url:';
