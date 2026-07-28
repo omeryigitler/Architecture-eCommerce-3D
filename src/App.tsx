@@ -6,7 +6,7 @@
 
 import { useState, useRef, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ShoppingBag, User, Cuboid, Moon, Sun, X } from 'lucide-react';
+import { Search, ShoppingBag, User, Cuboid, Moon, Sun, X, SunMedium, Sliders } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, PresentationControls, ContactShadows, useGLTF, Center, Html, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
@@ -233,6 +233,7 @@ export default function App() {
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [show3D, setShow3D] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [lightIntensity, setLightIntensity] = useState(1.0);
 
   const slideImages = [
     isDarkMode ? nightImage : dayImage,
@@ -458,10 +459,10 @@ export default function App() {
                 className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#d4dcd2] to-[#b3c2ae] flex items-center justify-center"
               >
                 <Canvas camera={{ position: [0, 0, 4], fov: 45 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
-                  <ambientLight intensity={0.8} />
-                  <directionalLight position={[5, 8, 5]} intensity={1.2} />
-                  <directionalLight position={[-5, 5, -5]} intensity={0.5} color="#e0e8ff" />
-                  <spotLight position={[10, 10, 10]} angle={0.2} penumbra={1} intensity={1.5} />
+                  <ambientLight intensity={0.8 * lightIntensity} />
+                  <directionalLight position={[5, 8, 5]} intensity={1.2 * lightIntensity} />
+                  <directionalLight position={[-5, 5, -5]} intensity={0.5 * lightIntensity} color="#e0e8ff" />
+                  <spotLight position={[10, 10, 10]} angle={0.2} penumbra={1} intensity={1.5 * lightIntensity} />
                   <PresentationControls 
                       global
                       rotation={[0, -Math.PI / 4, 0]}
@@ -478,26 +479,47 @@ export default function App() {
                     </PresentationControls>
                     <Environment resolution={256}>
                       <group rotation={[-Math.PI / 3, 0, 1]}>
-                        <Lightformer form="rect" intensity={2} color="#ffffff" position={[0, 5, -9]} scale={[10, 10, 1]} target={[0, 0, 0]} />
-                        <Lightformer form="ring" intensity={1.5} color="#e6f0fa" position={[-5, 2, -1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
-                        <Lightformer form="rect" intensity={1} color="#ffffff" position={[10, 0, 1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
+                        <Lightformer form="rect" intensity={2 * lightIntensity} color="#ffffff" position={[0, 5, -9]} scale={[10, 10, 1]} target={[0, 0, 0]} />
+                        <Lightformer form="ring" intensity={1.5 * lightIntensity} color="#e6f0fa" position={[-5, 2, -1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
+                        <Lightformer form="rect" intensity={1 * lightIntensity} color="#ffffff" position={[10, 0, 1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
                       </group>
                     </Environment>
                     <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
                   </Canvas>
                 
-                {/* Overlay instructions for user */}
-                <div className="absolute bottom-8 right-8 max-w-xs p-4 bg-white/60 backdrop-blur-md rounded-xl border border-white/60 text-brand-green text-xs shadow-lg flex items-center justify-between gap-4 z-20">
-                  <div>
-                    <p className="font-semibold mb-0.5">3D Viewer Active</p>
-                    <p className="text-gray-700">Drag to rotate the interior model.</p>
+                {/* Overlay Lighting Slider & 3D Info Controls */}
+                <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 z-20 pointer-events-none">
+                  {/* Light Intensity Slider Panel */}
+                  <div className="pointer-events-auto bg-white/75 backdrop-blur-md border border-white/80 p-3.5 px-5 rounded-2xl text-brand-green shadow-xl flex items-center gap-4 min-w-[280px]">
+                    <div className="flex items-center gap-2 font-semibold text-xs shrink-0">
+                      <SunMedium className="w-4 h-4 text-brand-green/80" />
+                      <span>Light Intensity:</span>
+                      <span className="font-bold text-brand-green min-w-[36px]">{Math.round(lightIntensity * 100)}%</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0.1" 
+                      max="2.5" 
+                      step="0.05"
+                      value={lightIntensity}
+                      onChange={(e) => setLightIntensity(parseFloat(e.target.value))}
+                      className="w-full accent-brand-green cursor-pointer h-1.5 bg-brand-green/20 rounded-lg appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-brand-green [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
+                    />
                   </div>
-                  <button 
-                    onClick={() => setShow3D(false)}
-                    className="px-3 py-1.5 bg-brand-green text-white text-xs font-semibold rounded-lg hover:bg-brand-green/90 transition-colors shrink-0 cursor-pointer shadow-sm"
-                  >
-                    Close 3D
-                  </button>
+
+                  {/* Info & Close 3D Button */}
+                  <div className="pointer-events-auto p-3.5 px-5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 text-brand-green text-xs shadow-xl flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold mb-0.5">3D Viewer Active</p>
+                      <p className="text-gray-700">Drag to rotate the model.</p>
+                    </div>
+                    <button 
+                      onClick={() => setShow3D(false)}
+                      className="px-3.5 py-2 bg-brand-green text-white text-xs font-semibold rounded-xl hover:bg-brand-green/90 transition-all shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95"
+                    >
+                      Close 3D
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
