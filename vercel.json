@@ -33,18 +33,6 @@
   ],
   "rewrites": [
     {
-      "source": "/assets/day-:hash.png",
-      "destination": "/assets/day.png"
-    },
-    {
-      "source": "/assets/night-:hash.png",
-      "destination": "/assets/night.png"
-    },
-    {
-      "source": "/assets/model-:hash.glb",
-      "destination": "/assets/model.glb"
-    },
-    {
       "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
