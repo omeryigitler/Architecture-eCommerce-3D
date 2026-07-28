@@ -364,7 +364,7 @@ export default function App() {
                     const target = e.target as HTMLImageElement;
                     if (!target.getAttribute('data-error-handled')) {
                       target.setAttribute('data-error-handled', 'true');
-                      target.src = dayImage;
+                      target.src = isDarkMode ? '/night.png' : '/day.png';
                     }
                   }}
                   className="absolute inset-0 w-full h-full object-cover object-center"
