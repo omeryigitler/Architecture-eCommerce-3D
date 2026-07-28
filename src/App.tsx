@@ -15,9 +15,9 @@ import dayImageImport from './assets/day.png';
 import nightImageImport from './assets/night.png';
 import modelUrlImport from './assets/model.glb';
 
-const dayImage = dayImageImport || '/day.png';
-const nightImage = nightImageImport || '/night.png';
-const modelUrl = modelUrlImport || '/model.glb';
+const dayImage = dayImageImport;
+const nightImage = nightImageImport;
+const modelUrl = modelUrlImport;
 
 // --- Fallback 3D Component ---
 function FallbackShape() {
@@ -362,8 +362,9 @@ export default function App() {
                   transition={{ duration: 1.5, ease: "easeOut" }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    if (!target.src.includes('day.png')) {
-                      target.src = '/day.png';
+                    if (!target.getAttribute('data-error-handled')) {
+                      target.setAttribute('data-error-handled', 'true');
+                      target.src = dayImage;
                     }
                   }}
                   className="absolute inset-0 w-full h-full object-cover object-center"
