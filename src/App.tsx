@@ -11,9 +11,13 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, PresentationControls, ContactShadows, useGLTF, Center, Html, Lightformer } from '@react-three/drei';
 import * as THREE from 'three';
 import { ErrorBoundary } from 'react-error-boundary';
-import dayImage from './assets/day.png';
-import nightImage from './assets/night.png';
-import modelUrl from './assets/model.glb';
+import dayImageImport from './assets/day.png';
+import nightImageImport from './assets/night.png';
+import modelUrlImport from './assets/model.glb';
+
+const dayImage = dayImageImport || '/day.png';
+const nightImage = nightImageImport || '/night.png';
+const modelUrl = modelUrlImport || '/model.glb';
 
 // --- Fallback 3D Component ---
 function FallbackShape() {
@@ -358,14 +362,7 @@ export default function App() {
                   transition={{ duration: 1.5, ease: "easeOut" }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    if (target.getAttribute('data-failed') === 'true') {
-                      target.onerror = null;
-                      return;
-                    }
-                    target.setAttribute('data-failed', 'true');
-                    if (target.src.includes('night')) {
-                      target.src = dayImage || '/day.png';
-                    } else {
+                    if (!target.src.includes('day.png')) {
                       target.src = '/day.png';
                     }
                   }}
