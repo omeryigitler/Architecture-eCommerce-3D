@@ -45,130 +45,24 @@ function FallbackShape() {
   );
 }
 
-// Helper to create procedural wood texture for chair legs
-function createWoodTexture() {
-  if (typeof document === 'undefined') return null;
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  // Base warm wood tone
-  ctx.fillStyle = '#9c5e33';
-  ctx.fillRect(0, 0, 512, 512);
-
-  // Wood grain lines
-  for (let i = 0; i < 600; i++) {
-    const y = Math.random() * 512;
-    const height = Math.random() * 2 + 1;
-    ctx.fillStyle = Math.random() > 0.5 ? 'rgba(65, 34, 15, 0.15)' : 'rgba(210, 155, 100, 0.12)';
-    ctx.fillRect(0, y, 512, height);
-  }
-
-  // Fine wood rings / curves
-  ctx.strokeStyle = 'rgba(50, 25, 10, 0.08)';
-  ctx.lineWidth = 2;
-  for (let r = 20; r < 700; r += 12) {
-    ctx.beginPath();
-    ctx.ellipse(256, 256, r, r * 0.25, 0.1, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 3);
-  return texture;
-}
-
 // --- 3D Model Component ---
 function Model() {
   const { scene } = useGLTF(modelUrl);
-  
+
   const processedScene = useMemo(() => {
     const cloned = scene.clone(true);
-    const woodTex = createWoodTexture();
 
-    const woodMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#9e6238'), // Warm natural oak wood tone
-      roughness: 0.38,
-      metalness: 0.05,
-      map: woodTex || undefined,
-    });
-
-    const seatMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#f5f2eb'), // Warm off-white boucle cream
-      roughness: 0.85,
-      metalness: 0.02,
-    });
-
-    const meshesToReplace: THREE.Mesh[] = [];
     cloned.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
-        meshesToReplace.push(child as THREE.Mesh);
-      }
-    });
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
 
-    meshesToReplace.forEach((mesh) => {
-      const parent = mesh.parent;
-      const geom = mesh.geometry;
-      const pos = geom.attributes.position;
-      const index = geom.index;
-
-      if (pos && parent) {
-        const seatIndices: number[] = [];
-        const legIndices: number[] = [];
-
-        const faceCount = index ? index.count / 3 : pos.count / 3;
-        for (let i = 0; i < faceCount; i++) {
-          let i1: number, i2: number, i3: number;
-          if (index) {
-            i1 = index.getX(i * 3);
-            i2 = index.getX(i * 3 + 1);
-            i3 = index.getX(i * 3 + 2);
-          } else {
-            i1 = i * 3;
-            i2 = i * 3 + 1;
-            i3 = i * 3 + 2;
-          }
-          const y1 = pos.getY(i1);
-          const y2 = pos.getY(i2);
-          const y3 = pos.getY(i3);
-          const avgY = (y1 + y2 + y3) / 3;
-
-          if (avgY < -0.08) {
-            legIndices.push(i1, i2, i3);
-          } else {
-            seatIndices.push(i1, i2, i3);
-          }
+        if (Array.isArray(mesh.material)) {
+          mesh.material = mesh.material.map((material) => material.clone());
+        } else if (mesh.material) {
+          mesh.material = mesh.material.clone();
         }
-
-        if (seatIndices.length > 0) {
-          const seatGeom = geom.clone();
-          seatGeom.setIndex(seatIndices);
-          const seatMesh = new THREE.Mesh(seatGeom, seatMaterial);
-          seatMesh.position.copy(mesh.position);
-          seatMesh.rotation.copy(mesh.rotation);
-          seatMesh.scale.copy(mesh.scale);
-          seatMesh.castShadow = true;
-          seatMesh.receiveShadow = true;
-          parent.add(seatMesh);
-        }
-
-        if (legIndices.length > 0) {
-          const legsGeom = geom.clone();
-          legsGeom.setIndex(legIndices);
-          const legsMesh = new THREE.Mesh(legsGeom, woodMaterial);
-          legsMesh.position.copy(mesh.position);
-          legsMesh.rotation.copy(mesh.rotation);
-          legsMesh.scale.copy(mesh.scale);
-          legsMesh.castShadow = true;
-          legsMesh.receiveShadow = true;
-          parent.add(legsMesh);
-        }
-
-        parent.remove(mesh);
       }
     });
 
@@ -364,7 +258,7 @@ export default function App() {
                     const target = e.target as HTMLImageElement;
                     if (!target.getAttribute('data-error-handled')) {
                       target.setAttribute('data-error-handled', 'true');
-                      target.src = isDarkMode ? '/night.png' : '/day.png';
+                      target.src = isDarkMode ? nightImage : dayImage;
                     }
                   }}
                   className="absolute inset-0 w-full h-full object-cover object-center"
