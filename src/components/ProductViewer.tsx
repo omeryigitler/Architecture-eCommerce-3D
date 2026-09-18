@@ -1,52 +1,31 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import {
-  CameraControls,
-  ContactShadows,
-  Environment,
-  Html,
-  Lightformer,
-  useGLTF,
-} from '@react-three/drei';
+import { CameraControls, ContactShadows, Environment, Html, Lightformer, useGLTF } from '@react-three/drei';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Cuboid, Eye, EyeOff, Rotate3D, SunMedium, X } from 'lucide-react';
+import { Cuboid, Rotate3D, SlidersHorizontal, SunMedium, X } from 'lucide-react';
 import * as THREE from 'three';
 
-const MODEL_URL = '/model.glb';
+const MODEL_URL = '/api/model';
 
 type CameraPreset = 'perspective' | 'front' | 'side' | 'back' | 'detail';
 type LightingPreset = 'daylight' | 'studio' | 'evening';
-type FinishKey = 'oat' | 'sage' | 'charcoal';
-type FrameKey = 'graphite' | 'bronze' | 'ivory';
-type AccentKey = 'brass' | 'black' | 'chrome';
+type Panel = 'camera' | 'finish' | 'lighting';
 
 interface ProductViewerProps {
   onClose: () => void;
-  compact?: boolean;
 }
 
-interface FinishConfig {
-  upholstery: FinishKey;
-  frame: FrameKey;
-  accent: AccentKey;
+interface SelectedSurface {
+  id: string;
+  label: string;
 }
 
-const UPHOLSTERY: Record<FinishKey, { label: string; color: string }> = {
-  oat: { label: 'Oat', color: '#d7d0c5' },
-  sage: { label: 'Sage', color: '#9ba790' },
-  charcoal: { label: 'Charcoal', color: '#3d4240' },
-};
-
-const FRAME: Record<FrameKey, { label: string; color: string }> = {
-  graphite: { label: 'Graphite', color: '#1c211f' },
-  bronze: { label: 'Bronze', color: '#6b5642' },
-  ivory: { label: 'Ivory', color: '#d9d5ca' },
-};
-
-const ACCENT: Record<AccentKey, { label: string; color: string }> = {
-  brass: { label: 'Brass', color: '#c7a267' },
-  black: { label: 'Black', color: '#171817' },
-  chrome: { label: 'Chrome', color: '#bfc4c2' },
+const CAMERA_POSITIONS: Record<CameraPreset, [number, number, number]> = {
+  perspective: [3.4, 2.1, 4.2],
+  front: [0, 0.35, 4.7],
+  side: [4.7, 0.35, 0],
+  back: [0, 0.35, -4.7],
+  detail: [2.25, 1.35, 2.45],
 };
 
 const LIGHTING: Record<
@@ -68,37 +47,37 @@ const LIGHTING: Record<
   daylight: {
     label: 'Daylight',
     background: 'from-[#dce4da] to-[#b8c8b4]',
-    floor: '#cbd4c8',
-    ambient: 0.75,
-    key: 1.25,
-    fill: 0.48,
-    rim: 0.85,
-    keyColor: '#fff7ea',
+    floor: '#cad3c7',
+    ambient: 0.74,
+    key: 1.2,
+    fill: 0.45,
+    rim: 0.82,
+    keyColor: '#fff8ee',
     fillColor: '#dfeaff',
     rimColor: '#ffffff',
-    exposure: 1.05,
+    exposure: 1.03,
   },
   studio: {
     label: 'Studio',
-    background: 'from-[#d7d7d2] to-[#aeb4ae]',
+    background: 'from-[#deded9] to-[#adb4ae]',
     floor: '#c5c7c2',
-    ambient: 0.55,
-    key: 1.55,
-    fill: 0.72,
-    rim: 1.1,
+    ambient: 0.54,
+    key: 1.48,
+    fill: 0.7,
+    rim: 1.08,
     keyColor: '#ffffff',
     fillColor: '#e9eef4',
     rimColor: '#ffffff',
-    exposure: 1.0,
+    exposure: 1,
   },
   evening: {
     label: 'Evening',
     background: 'from-[#42544d] to-[#172823]',
     floor: '#283b34',
-    ambient: 0.36,
-    key: 1.0,
+    ambient: 0.34,
+    key: 0.98,
     fill: 0.28,
-    rim: 1.25,
+    rim: 1.2,
     keyColor: '#ffd9a6',
     fillColor: '#9db7c8',
     rimColor: '#ffc883',
@@ -106,149 +85,34 @@ const LIGHTING: Record<
   },
 };
 
-const CAMERA_POSITIONS: Record<CameraPreset, [number, number, number]> = {
-  perspective: [3.4, 2.1, 4.2],
-  front: [0, 0.35, 4.6],
-  side: [4.6, 0.35, 0],
-  back: [0, 0.35, -4.6],
-  detail: [2.3, 1.4, 2.5],
-};
-
-function classifyMaterial(name: string) {
-  const key = name.toLowerCase();
-  if (key.includes('brass') || key.includes('accent')) return 'accent';
-  if (key.includes('frame') || key.includes('metal')) return 'frame';
-  return 'upholstery';
-}
-
-function FallbackChair() {
-  const fabric = '#d7d0c5';
-  const metal = '#1c211f';
-
-  return (
-    <group>
-      <mesh position={[0, -0.1, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.8, 0.34, 1.65]} />
-        <meshStandardMaterial color={fabric} roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 0.78, -0.68]} rotation={[-0.12, 0, 0]} castShadow>
-        <boxGeometry args={[1.75, 1.25, 0.28]} />
-        <meshStandardMaterial color={fabric} roughness={0.8} />
-      </mesh>
-      {[
-        [-0.68, -0.78, 0.55],
-        [0.68, -0.78, 0.55],
-        [-0.68, -0.78, -0.55],
-        [0.68, -0.78, -0.55],
-      ].map((position, index) => (
-        <mesh key={index} position={position as [number, number, number]} castShadow>
-          <cylinderGeometry args={[0.04, 0.035, 1.05, 16]} />
-          <meshStandardMaterial color={metal} roughness={0.28} metalness={0.82} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function ConfigurableModel({
-  finishes,
-  onSelectPart,
-}: {
-  finishes: FinishConfig;
-  onSelectPart: (part: string) => void;
-}) {
-  const { scene } = useGLTF(MODEL_URL);
-
-  const prepared = useMemo(() => {
-    const cloned = scene.clone(true);
-
-    cloned.traverse((child) => {
-      if (!(child as THREE.Mesh).isMesh) return;
-      const mesh = child as THREE.Mesh;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-
-      if (Array.isArray(mesh.material)) {
-        mesh.material = mesh.material.map((material) => material.clone());
-      } else if (mesh.material) {
-        mesh.material = mesh.material.clone();
-      }
-    });
-
-    const box = new THREE.Box3().setFromObject(cloned);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const maxDimension = Math.max(size.x, size.y, size.z) || 1;
-    cloned.position.sub(center);
-
-    return { object: cloned, scale: 2.55 / maxDimension };
-  }, [scene]);
-
-  useEffect(() => {
-    prepared.object.traverse((child) => {
-      if (!(child as THREE.Mesh).isMesh) return;
-      const mesh = child as THREE.Mesh;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-
-      materials.forEach((material) => {
-        if (!(material instanceof THREE.MeshStandardMaterial)) return;
-
-        const group = classifyMaterial(material.name || mesh.name || '');
-
-        if (group === 'accent') {
-          material.color.set(ACCENT[finishes.accent].color);
-          material.roughness = finishes.accent === 'chrome' ? 0.16 : 0.3;
-          material.metalness = 0.9;
-        } else if (group === 'frame') {
-          material.color.set(FRAME[finishes.frame].color);
-          material.roughness = finishes.frame === 'ivory' ? 0.48 : 0.28;
-          material.metalness = finishes.frame === 'ivory' ? 0.28 : 0.82;
-        } else {
-          material.color.set(UPHOLSTERY[finishes.upholstery].color);
-          material.roughness = 0.82;
-          material.metalness = 0.02;
-        }
-
-        material.needsUpdate = true;
-      });
-    });
-  }, [finishes, prepared.object]);
-
-  return (
-    <group scale={prepared.scale}>
-      <primitive
-        object={prepared.object}
-        onPointerDown={(event: any) => {
-          event.stopPropagation();
-          const material = event.object?.material;
-          const firstMaterial = Array.isArray(material) ? material[0] : material;
-          onSelectPart(classifyMaterial(firstMaterial?.name || event.object?.name || ''));
-        }}
-      />
-    </group>
-  );
-}
+const FINISHES = [
+  { key: 'original', label: 'Original', color: 'transparent' },
+  { key: 'oat', label: 'Oat', color: '#d8d0c4' },
+  { key: 'sage', label: 'Sage', color: '#98a48f' },
+  { key: 'charcoal', label: 'Charcoal', color: '#3f4543' },
+  { key: 'clay', label: 'Clay', color: '#a36e58' },
+  { key: 'sand', label: 'Sand', color: '#c8b795' },
+];
 
 function CameraRig({ preset }: { preset: CameraPreset }) {
-  const controlsRef = useRef<any>(null);
+  const ref = useRef<any>(null);
 
   useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
+    if (!ref.current) return;
     const [x, y, z] = CAMERA_POSITIONS[preset];
-    controls.setLookAt(x, y, z, 0, 0, 0, true);
+    ref.current.setLookAt(x, y, z, 0, 0, 0, true);
   }, [preset]);
 
   return (
     <CameraControls
-      ref={controlsRef}
+      ref={ref}
       makeDefault
-      minDistance={2.2}
-      maxDistance={7}
-      minPolarAngle={Math.PI * 0.12}
-      maxPolarAngle={Math.PI * 0.82}
+      minDistance={2}
+      maxDistance={7.5}
+      minPolarAngle={Math.PI * 0.1}
+      maxPolarAngle={Math.PI * 0.84}
       dollyToCursor
-      smoothTime={0.35}
+      smoothTime={0.32}
     />
   );
 }
@@ -264,150 +128,184 @@ function RendererSettings({ exposure }: { exposure: number }) {
   return null;
 }
 
-function Hotspot({
-  position,
-  title,
-  detail,
-  active,
-  onClick,
-}: {
-  position: [number, number, number];
-  title: string;
-  detail: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function ModelError() {
   return (
-    <Html position={position} center distanceFactor={7.5}>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onClick();
-        }}
-        className="group relative flex items-center"
-        aria-label={`Inspect ${title}`}
-      >
-        <span className="relative flex h-5 w-5 items-center justify-center rounded-full border border-white/80 bg-brand-green text-[9px] font-bold text-white shadow-lg">
-          <span className="absolute inset-0 animate-ping rounded-full bg-white/40" />
-          <span className="relative">+</span>
-        </span>
-        <span
-          className={`ml-2 min-w-[130px] rounded-xl border border-white/70 bg-white/85 px-3 py-2 text-left text-[10px] text-brand-green shadow-xl backdrop-blur-md transition-all ${
-            active ? 'scale-100 opacity-100' : 'pointer-events-none scale-95 opacity-0'
-          }`}
-        >
-          <strong className="block text-[9px] uppercase tracking-[0.14em]">{title}</strong>
-          <span className="mt-0.5 block text-gray-600">{detail}</span>
-        </span>
-      </button>
+    <Html center>
+      <div className="w-64 rounded-2xl border border-white/70 bg-white/90 px-5 py-4 text-center text-brand-green shadow-xl backdrop-blur-md">
+        <Cuboid className="mx-auto mb-2 h-6 w-6" />
+        <p className="text-xs font-semibold">3D model could not be loaded.</p>
+        <p className="mt-1 text-[10px] text-gray-500">Close the viewer and try again.</p>
+      </div>
     </Html>
   );
 }
 
+function ConfigurableModel({
+  overrides,
+  onSelectSurface,
+}: {
+  overrides: Record<string, string>;
+  onSelectSurface: (surface: SelectedSurface) => void;
+}) {
+  const { scene } = useGLTF(MODEL_URL);
+
+  const prepared = useMemo(() => {
+    const cloned = scene.clone(true);
+
+    cloned.traverse((child) => {
+      if (!(child as THREE.Mesh).isMesh) return;
+
+      const mesh = child as THREE.Mesh;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const cloneMaterial = (material: THREE.Material) => {
+        const clonedMaterial = material.clone();
+
+        if (clonedMaterial instanceof THREE.MeshStandardMaterial) {
+          clonedMaterial.userData.originalColor = clonedMaterial.color.getHexString();
+        }
+
+        return clonedMaterial;
+      };
+
+      if (Array.isArray(mesh.material)) {
+        mesh.material = mesh.material.map(cloneMaterial);
+      } else if (mesh.material) {
+        mesh.material = cloneMaterial(mesh.material);
+      }
+    });
+
+    const box = new THREE.Box3().setFromObject(cloned);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDimension = Math.max(size.x, size.y, size.z) || 1;
+
+    cloned.position.sub(center);
+
+    return {
+      object: cloned,
+      scale: 2.7 / maxDimension,
+    };
+  }, [scene]);
+
+  useEffect(() => {
+    prepared.object.traverse((child) => {
+      if (!(child as THREE.Mesh).isMesh) return;
+      const mesh = child as THREE.Mesh;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+      materials.forEach((material) => {
+        if (!(material instanceof THREE.MeshStandardMaterial)) return;
+
+        const originalColor = material.userData.originalColor;
+        if (typeof originalColor === 'string') {
+          material.color.set(`#${originalColor}`);
+        }
+
+        const override = overrides[mesh.uuid];
+        if (override) {
+          material.color.set(override);
+        }
+
+        material.needsUpdate = true;
+      });
+    });
+  }, [overrides, prepared.object]);
+
+  return (
+    <group scale={prepared.scale}>
+      <primitive
+        object={prepared.object}
+        onPointerDown={(event: any) => {
+          event.stopPropagation();
+
+          const mesh = event.object as THREE.Mesh;
+          const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+          const rawLabel = mesh.name || material?.name || 'Selected surface';
+
+          onSelectSurface({
+            id: mesh.uuid,
+            label: rawLabel.replace(/[_-]+/g, ' ').slice(0, 34),
+          });
+        }}
+      />
+    </group>
+  );
+}
+
 function Scene({
-  finishes,
   cameraPreset,
   lightingPreset,
-  lightIntensity,
-  showHotspots,
-  activeHotspot,
-  setActiveHotspot,
-  setSelectedPart,
+  intensity,
+  overrides,
+  onSelectSurface,
 }: {
-  finishes: FinishConfig;
   cameraPreset: CameraPreset;
   lightingPreset: LightingPreset;
-  lightIntensity: number;
-  showHotspots: boolean;
-  activeHotspot: string | null;
-  setActiveHotspot: (value: string | null) => void;
-  setSelectedPart: (value: string) => void;
+  intensity: number;
+  overrides: Record<string, string>;
+  onSelectSurface: (surface: SelectedSurface) => void;
 }) {
   const lighting = LIGHTING[lightingPreset];
 
   return (
     <>
       <RendererSettings exposure={lighting.exposure} />
-      <ambientLight intensity={lighting.ambient * lightIntensity} />
+
+      <ambientLight intensity={lighting.ambient * intensity} />
       <directionalLight
         castShadow
         position={[4.5, 7, 4]}
-        intensity={lighting.key * lightIntensity}
+        intensity={lighting.key * intensity}
         color={lighting.keyColor}
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
       <directionalLight
         position={[-4, 3.5, -4]}
-        intensity={lighting.fill * lightIntensity}
+        intensity={lighting.fill * intensity}
         color={lighting.fillColor}
       />
       <spotLight
         position={[5, 6, -3]}
         angle={0.38}
         penumbra={0.9}
-        intensity={lighting.rim * lightIntensity}
+        intensity={lighting.rim * intensity}
         color={lighting.rimColor}
       />
 
       <Environment resolution={128}>
-        <Lightformer form="rect" intensity={1.8 * lightIntensity} color={lighting.keyColor} position={[0, 5, -8]} scale={[8, 8, 1]} />
-        <Lightformer form="ring" intensity={1.15 * lightIntensity} color={lighting.fillColor} position={[-5, 2, -1]} scale={[8, 8, 1]} />
-        <Lightformer form="rect" intensity={0.8 * lightIntensity} color={lighting.rimColor} position={[7, 1, 2]} scale={[7, 7, 1]} />
+        <Lightformer form="rect" intensity={1.7 * intensity} color={lighting.keyColor} position={[0, 5, -8]} scale={[8, 8, 1]} />
+        <Lightformer form="ring" intensity={1.05 * intensity} color={lighting.fillColor} position={[-5, 2, -1]} scale={[8, 8, 1]} />
+        <Lightformer form="rect" intensity={0.78 * intensity} color={lighting.rimColor} position={[7, 1, 2]} scale={[7, 7, 1]} />
       </Environment>
 
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.36, 0]} receiveShadow>
-        <circleGeometry args={[4.2, 80]} />
-        <meshStandardMaterial color={lighting.floor} roughness={0.92} metalness={0.02} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.42, 0]} receiveShadow>
+        <circleGeometry args={[4.4, 80]} />
+        <meshStandardMaterial color={lighting.floor} roughness={0.94} />
       </mesh>
 
-      <ErrorBoundary fallback={<FallbackChair />}>
+      <ErrorBoundary fallbackRender={() => <ModelError />}>
         <Suspense
           fallback={
             <Html center>
-              <div className="flex flex-col items-center gap-3 rounded-2xl bg-white/80 px-5 py-4 text-brand-green shadow-xl backdrop-blur-md">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/70 bg-white/85 px-5 py-4 text-brand-green shadow-xl backdrop-blur-md">
                 <div className="h-9 w-9 animate-spin rounded-full border-4 border-brand-green/20 border-t-brand-green/80" />
                 <span className="text-[10px] font-semibold tracking-[0.18em]">LOADING 3D</span>
               </div>
             </Html>
           }
         >
-          <ConfigurableModel finishes={finishes} onSelectPart={setSelectedPart} />
+          <ConfigurableModel overrides={overrides} onSelectSurface={onSelectSurface} />
         </Suspense>
       </ErrorBoundary>
 
-      {showHotspots && (
-        <>
-          <Hotspot
-            position={[0.02, 0.68, 0.72]}
-            title="Upholstery"
-            detail="Soft-touch textile finish"
-            active={activeHotspot === 'upholstery'}
-            onClick={() => setActiveHotspot(activeHotspot === 'upholstery' ? null : 'upholstery')}
-          />
-          <Hotspot
-            position={[0.8, -0.58, 0.42]}
-            title="Frame"
-            detail="Structural metal support"
-            active={activeHotspot === 'frame'}
-            onClick={() => setActiveHotspot(activeHotspot === 'frame' ? null : 'frame')}
-          />
-          <Hotspot
-            position={[-0.67, -0.95, 0.5]}
-            title="Accent"
-            detail="Metal detail finish"
-            active={activeHotspot === 'accent'}
-            onClick={() => setActiveHotspot(activeHotspot === 'accent' ? null : 'accent')}
-          />
-        </>
-      )}
-
       <ContactShadows
-        position={[0, -1.34, 0]}
-        opacity={lightingPreset === 'evening' ? 0.52 : 0.38}
+        position={[0, -1.4, 0]}
+        opacity={lightingPreset === 'evening' ? 0.5 : 0.36}
         scale={8}
-        blur={2.4}
+        blur={2.5}
         far={4}
       />
 
@@ -416,53 +314,31 @@ function Scene({
   );
 }
 
-function SwatchRow({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: Record<string, { label: string; color: string }>;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-14 text-[9px] font-semibold uppercase tracking-[0.12em] text-gray-500">{label}</span>
-      <div className="flex gap-1.5">
-        {Object.entries(options).map(([key, option]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onChange(key)}
-            title={option.label}
-            aria-label={`${label}: ${option.label}`}
-            className={`h-5 w-5 rounded-full border-2 shadow-sm transition-transform hover:scale-110 ${
-              value === key ? 'scale-110 border-brand-green' : 'border-white'
-            }`}
-            style={{ backgroundColor: option.color }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function ProductViewer({ onClose }: ProductViewerProps) {
+  const [panel, setPanel] = useState<Panel>('camera');
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('perspective');
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight');
-  const [lightIntensity, setLightIntensity] = useState(1);
-  const [showHotspots, setShowHotspots] = useState(true);
-  const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
-  const [selectedPart, setSelectedPart] = useState('upholstery');
-  const [finishes, setFinishes] = useState<FinishConfig>({
-    upholstery: 'oat',
-    frame: 'graphite',
-    accent: 'brass',
-  });
+  const [intensity, setIntensity] = useState(1);
+  const [selectedSurface, setSelectedSurface] = useState<SelectedSurface | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
 
   const lighting = LIGHTING[lightingPreset];
+
+  const applyFinish = (key: string, color: string) => {
+    if (!selectedSurface) return;
+
+    setOverrides((current) => {
+      const next = { ...current };
+
+      if (key === 'original') {
+        delete next[selectedSurface.id];
+      } else {
+        next[selectedSurface.id] = color;
+      }
+
+      return next;
+    });
+  };
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-gradient-to-br ${lighting.background}`}>
@@ -473,19 +349,19 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <Scene
-          finishes={finishes}
           cameraPreset={cameraPreset}
           lightingPreset={lightingPreset}
-          lightIntensity={lightIntensity}
-          showHotspots={showHotspots}
-          activeHotspot={activeHotspot}
-          setActiveHotspot={setActiveHotspot}
-          setSelectedPart={setSelectedPart}
+          intensity={intensity}
+          overrides={overrides}
+          onSelectSurface={(surface) => {
+            setSelectedSurface(surface);
+            setPanel('finish');
+          }}
         />
       </Canvas>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4 md:p-5">
-        <div className="pointer-events-auto rounded-2xl border border-white/70 bg-white/75 px-4 py-3 text-brand-green shadow-xl backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4 md:p-6">
+        <div className="pointer-events-auto rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-brand-green shadow-xl backdrop-blur-md">
           <div className="flex items-center gap-2">
             <Cuboid className="h-4 w-4" />
             <span className="text-[10px] font-bold uppercase tracking-[0.16em]">Interactive 3D</span>
@@ -493,115 +369,139 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
           <p className="mt-1 text-[10px] text-gray-600">Drag to orbit · wheel or pinch to zoom</p>
         </div>
 
-        <div className="pointer-events-auto flex gap-2">
-          <button
-            type="button"
-            onClick={() => setShowHotspots((value) => !value)}
-            className="flex h-10 items-center gap-2 rounded-xl border border-white/70 bg-white/75 px-3 text-[10px] font-semibold text-brand-green shadow-xl backdrop-blur-md hover:bg-white"
-            aria-label={showHotspots ? 'Hide 3D hotspots' : 'Show 3D hotspots'}
-          >
-            {showHotspots ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            <span className="hidden sm:inline">{showHotspots ? 'Hide points' : 'Show points'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-green text-white shadow-xl transition-transform hover:scale-105"
-            aria-label="Close 3D viewer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-xl bg-brand-green text-white shadow-xl transition-transform hover:scale-105"
+          aria-label="Close 3D viewer"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3 md:p-5">
-        <div className="pointer-events-auto grid max-h-[46vh] gap-2 overflow-y-auto rounded-2xl border border-white/70 bg-white/80 p-3 shadow-2xl backdrop-blur-xl lg:grid-cols-[1fr_1.15fr_1fr]">
-          <div className="min-w-0 rounded-xl bg-white/55 p-3">
-            <div className="mb-2 flex items-center gap-2 text-brand-green">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-3 md:p-6">
+        <div className="pointer-events-auto w-full max-w-[650px] overflow-hidden rounded-2xl border border-white/75 bg-white/88 shadow-2xl backdrop-blur-xl">
+          <div className="grid grid-cols-3 border-b border-brand-green/10">
+            <button
+              type="button"
+              onClick={() => setPanel('camera')}
+              className={`flex items-center justify-center gap-2 px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                panel === 'camera' ? 'bg-brand-green text-white' : 'text-brand-green hover:bg-brand-green/5'
+              }`}
+            >
               <Rotate3D className="h-4 w-4" />
-              <span className="text-[9px] font-bold uppercase tracking-[0.16em]">Camera</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {(['perspective', 'front', 'side', 'back', 'detail'] as CameraPreset[]).map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setCameraPreset(preset)}
-                  className={`rounded-lg px-2.5 py-1.5 text-[9px] font-semibold capitalize transition-colors ${
-                    cameraPreset === preset
-                      ? 'bg-brand-green text-white'
-                      : 'bg-white text-brand-green hover:bg-brand-green/10'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="min-w-0 rounded-xl bg-white/55 p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-brand-green">Materials</span>
-              <span className="text-[9px] capitalize text-gray-500">Selected: {selectedPart}</span>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-              <SwatchRow
-                label="Fabric"
-                options={UPHOLSTERY}
-                value={finishes.upholstery}
-                onChange={(value) => setFinishes((current) => ({ ...current, upholstery: value as FinishKey }))}
-              />
-              <SwatchRow
-                label="Frame"
-                options={FRAME}
-                value={finishes.frame}
-                onChange={(value) => setFinishes((current) => ({ ...current, frame: value as FrameKey }))}
-              />
-              <SwatchRow
-                label="Accent"
-                options={ACCENT}
-                value={finishes.accent}
-                onChange={(value) => setFinishes((current) => ({ ...current, accent: value as AccentKey }))}
-              />
-            </div>
-          </div>
-
-          <div className="min-w-0 rounded-xl bg-white/55 p-3">
-            <div className="mb-2 flex items-center gap-2 text-brand-green">
+              Camera
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel('finish')}
+              className={`flex items-center justify-center gap-2 px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                panel === 'finish' ? 'bg-brand-green text-white' : 'text-brand-green hover:bg-brand-green/5'
+              }`}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Finish
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel('lighting')}
+              className={`flex items-center justify-center gap-2 px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                panel === 'lighting' ? 'bg-brand-green text-white' : 'text-brand-green hover:bg-brand-green/5'
+              }`}
+            >
               <SunMedium className="h-4 w-4" />
-              <span className="text-[9px] font-bold uppercase tracking-[0.16em]">Lighting</span>
-            </div>
-            <div className="mb-2 flex gap-1.5">
-              {(Object.keys(LIGHTING) as LightingPreset[]).map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setLightingPreset(preset)}
-                  className={`rounded-lg px-2.5 py-1.5 text-[9px] font-semibold transition-colors ${
-                    lightingPreset === preset
-                      ? 'bg-brand-green text-white'
-                      : 'bg-white text-brand-green hover:bg-brand-green/10'
-                  }`}
-                >
-                  {LIGHTING[preset].label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0.55"
-                max="1.55"
-                step="0.05"
-                value={lightIntensity}
-                onChange={(event) => setLightIntensity(Number(event.target.value))}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-brand-green/20 accent-brand-green"
-                aria-label="Light intensity"
-              />
-              <span className="min-w-[34px] text-right text-[9px] font-semibold text-brand-green">
-                {Math.round(lightIntensity * 100)}%
-              </span>
-            </div>
+              Lighting
+            </button>
+          </div>
+
+          <div className="min-h-[76px] px-4 py-4">
+            {panel === 'camera' && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {(['perspective', 'front', 'side', 'back', 'detail'] as CameraPreset[]).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setCameraPreset(preset)}
+                    className={`rounded-lg px-3 py-2 text-[10px] font-semibold capitalize transition-colors ${
+                      cameraPreset === preset
+                        ? 'bg-brand-green text-white'
+                        : 'bg-brand-green/5 text-brand-green hover:bg-brand-green/10'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {panel === 'finish' && (
+              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
+                <div className="text-center sm:text-left">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-green">
+                    {selectedSurface ? selectedSurface.label : 'Select a surface on the chair'}
+                  </p>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    {selectedSurface ? 'Finish changes affect only the selected surface.' : 'Click the model, then choose a finish.'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {FINISHES.map((finish) => (
+                    <button
+                      key={finish.key}
+                      type="button"
+                      disabled={!selectedSurface}
+                      onClick={() => applyFinish(finish.key, finish.color)}
+                      title={finish.label}
+                      aria-label={finish.label}
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 shadow-sm transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-35 ${
+                        finish.key === 'original' ? 'border-dashed border-brand-green/50 bg-white' : 'border-white'
+                      }`}
+                      style={finish.key === 'original' ? undefined : { backgroundColor: finish.color }}
+                    >
+                      {finish.key === 'original' && <span className="text-[9px] font-bold text-brand-green">↺</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {panel === 'lighting' && (
+              <div className="grid items-center gap-3 sm:grid-cols-[auto_1fr]">
+                <div className="flex justify-center gap-2">
+                  {(Object.keys(LIGHTING) as LightingPreset[]).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setLightingPreset(preset)}
+                      className={`rounded-lg px-3 py-2 text-[10px] font-semibold ${
+                        lightingPreset === preset
+                          ? 'bg-brand-green text-white'
+                          : 'bg-brand-green/5 text-brand-green hover:bg-brand-green/10'
+                      }`}
+                    >
+                      {LIGHTING[preset].label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0.55"
+                    max="1.55"
+                    step="0.05"
+                    value={intensity}
+                    onChange={(event) => setIntensity(Number(event.target.value))}
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-brand-green/20 accent-brand-green"
+                    aria-label="Light intensity"
+                  />
+                  <span className="min-w-[38px] text-right text-[10px] font-semibold text-brand-green">
+                    {Math.round(intensity * 100)}%
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

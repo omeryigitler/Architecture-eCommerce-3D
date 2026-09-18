@@ -158,8 +158,6 @@ export default function App() {
 
         {/* Right Column (Image & 3D) */}
         <div className="relative w-full md:w-[60%] h-full hidden md:block overflow-hidden bg-[#e0e5db]">
-          <AnimatePresence mode="wait">
-            {!show3D ? (
               <motion.div
                 key="image"
                 initial={{ opacity: 0 }}
@@ -274,19 +272,7 @@ export default function App() {
                   </div>
                 </div>
               </motion.div>
-            ) : (
-              <motion.div
-                key="3d-model"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.35 }}
-                className="absolute inset-0 h-full w-full"
-              >
-                <ProductViewer onClose={() => setShow3D(false)} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+
         </div>
 
         {/* Global Floating Navbar (Spans across both) */}
@@ -342,22 +328,23 @@ export default function App() {
             
           </div>
         </div>
+
+        <AnimatePresence>
+          {show3D && (
+            <motion.div
+              key="3d-viewer"
+              initial={{ opacity: 0, scale: 0.995 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.995 }}
+              transition={{ duration: 0.28 }}
+              className="fixed inset-0 z-[100] bg-[#d9e0d7] md:absolute md:inset-0 md:rounded-3xl"
+            >
+              <ProductViewer onClose={() => setShow3D(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {show3D && (
-          <motion.div
-            key="mobile-3d-viewer"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[100] bg-[#d9e0d7] md:hidden"
-          >
-            <ProductViewer onClose={() => setShow3D(false)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
