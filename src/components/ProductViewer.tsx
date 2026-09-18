@@ -2,22 +2,17 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { CameraControls, ContactShadows, Environment, Html, Lightformer, useGLTF } from '@react-three/drei';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Cuboid, Rotate3D, SlidersHorizontal, SunMedium, X } from 'lucide-react';
+import { Cuboid, Rotate3D, SunMedium, X } from 'lucide-react';
 import * as THREE from 'three';
 
 const MODEL_URL = '/api/model';
 
 type CameraPreset = 'perspective' | 'front' | 'side' | 'back' | 'detail';
 type LightingPreset = 'daylight' | 'studio' | 'evening';
-type Panel = 'camera' | 'finish' | 'lighting';
+type Panel = 'camera' | 'lighting';
 
 interface ProductViewerProps {
   onClose: () => void;
-}
-
-interface SelectedSurface {
-  id: string;
-  label: string;
 }
 
 const CAMERA_POSITIONS: Record<CameraPreset, [number, number, number]> = {
@@ -85,15 +80,6 @@ const LIGHTING: Record<
   },
 };
 
-const FINISHES = [
-  { key: 'original', label: 'Original', color: 'transparent' },
-  { key: 'oat', label: 'Oat', color: '#d8d0c4' },
-  { key: 'sage', label: 'Sage', color: '#98a48f' },
-  { key: 'charcoal', label: 'Charcoal', color: '#3f4543' },
-  { key: 'clay', label: 'Clay', color: '#a36e58' },
-  { key: 'sand', label: 'Sand', color: '#c8b795' },
-];
-
 function CameraRig({ preset }: { preset: CameraPreset }) {
   const ref = useRef<any>(null);
 
@@ -140,13 +126,7 @@ function ModelError() {
   );
 }
 
-function ConfigurableModel({
-  overrides,
-  onSelectSurface,
-}: {
-  overrides: Record<string, string>;
-  onSelectSurface: (surface: SelectedSurface) => void;
-}) {
+function ProductModel() {
   const { scene } = useGLTF(MODEL_URL);
 
   const prepared = useMemo(() => {
@@ -154,25 +134,14 @@ function ConfigurableModel({
 
     cloned.traverse((child) => {
       if (!(child as THREE.Mesh).isMesh) return;
-
       const mesh = child as THREE.Mesh;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
-      const cloneMaterial = (material: THREE.Material) => {
-        const clonedMaterial = material.clone();
-
-        if (clonedMaterial instanceof THREE.MeshStandardMaterial) {
-          clonedMaterial.userData.originalColor = clonedMaterial.color.getHexString();
-        }
-
-        return clonedMaterial;
-      };
-
       if (Array.isArray(mesh.material)) {
-        mesh.material = mesh.material.map(cloneMaterial);
+        mesh.material = mesh.material.map((material) => material.clone());
       } else if (mesh.material) {
-        mesh.material = cloneMaterial(mesh.material);
+        mesh.material = mesh.material.clone();
       }
     });
 
@@ -189,47 +158,9 @@ function ConfigurableModel({
     };
   }, [scene]);
 
-  useEffect(() => {
-    prepared.object.traverse((child) => {
-      if (!(child as THREE.Mesh).isMesh) return;
-      const mesh = child as THREE.Mesh;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-
-      materials.forEach((material) => {
-        if (!(material instanceof THREE.MeshStandardMaterial)) return;
-
-        const originalColor = material.userData.originalColor;
-        if (typeof originalColor === 'string') {
-          material.color.set(`#${originalColor}`);
-        }
-
-        const override = overrides[mesh.uuid];
-        if (override) {
-          material.color.set(override);
-        }
-
-        material.needsUpdate = true;
-      });
-    });
-  }, [overrides, prepared.object]);
-
   return (
     <group scale={prepared.scale}>
-      <primitive
-        object={prepared.object}
-        onPointerDown={(event: any) => {
-          event.stopPropagation();
-
-          const mesh = event.object as THREE.Mesh;
-          const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
-          const rawLabel = mesh.name || material?.name || 'Selected surface';
-
-          onSelectSurface({
-            id: mesh.uuid,
-            label: rawLabel.replace(/[_-]+/g, ' ').slice(0, 34),
-          });
-        }}
-      />
+      <primitive object={prepared.object} />
     </group>
   );
 }
@@ -238,14 +169,10 @@ function Scene({
   cameraPreset,
   lightingPreset,
   intensity,
-  overrides,
-  onSelectSurface,
 }: {
   cameraPreset: CameraPreset;
   lightingPreset: LightingPreset;
   intensity: number;
-  overrides: Record<string, string>;
-  onSelectSurface: (surface: SelectedSurface) => void;
 }) {
   const lighting = LIGHTING[lightingPreset];
 
@@ -297,7 +224,7 @@ function Scene({
             </Html>
           }
         >
-          <ConfigurableModel overrides={overrides} onSelectSurface={onSelectSurface} />
+          <ProductModel />
         </Suspense>
       </ErrorBoundary>
 
@@ -319,26 +246,8 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
   const [cameraPreset, setCameraPreset] = useState<CameraPreset>('perspective');
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight');
   const [intensity, setIntensity] = useState(1);
-  const [selectedSurface, setSelectedSurface] = useState<SelectedSurface | null>(null);
-  const [overrides, setOverrides] = useState<Record<string, string>>({});
 
   const lighting = LIGHTING[lightingPreset];
-
-  const applyFinish = (key: string, color: string) => {
-    if (!selectedSurface) return;
-
-    setOverrides((current) => {
-      const next = { ...current };
-
-      if (key === 'original') {
-        delete next[selectedSurface.id];
-      } else {
-        next[selectedSurface.id] = color;
-      }
-
-      return next;
-    });
-  };
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-gradient-to-br ${lighting.background}`}>
@@ -352,11 +261,6 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
           cameraPreset={cameraPreset}
           lightingPreset={lightingPreset}
           intensity={intensity}
-          overrides={overrides}
-          onSelectSurface={(surface) => {
-            setSelectedSurface(surface);
-            setPanel('finish');
-          }}
         />
       </Canvas>
 
@@ -380,8 +284,8 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-3 md:p-6">
-        <div className="pointer-events-auto w-full max-w-[650px] overflow-hidden rounded-2xl border border-white/75 bg-white/88 shadow-2xl backdrop-blur-xl">
-          <div className="grid grid-cols-3 border-b border-brand-green/10">
+        <div className="pointer-events-auto w-full max-w-[560px] overflow-hidden rounded-2xl border border-white/75 bg-white/88 shadow-2xl backdrop-blur-xl">
+          <div className="grid grid-cols-2 border-b border-brand-green/10">
             <button
               type="button"
               onClick={() => setPanel('camera')}
@@ -391,16 +295,6 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
             >
               <Rotate3D className="h-4 w-4" />
               Camera
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanel('finish')}
-              className={`flex items-center justify-center gap-2 px-3 py-3 text-[10px] font-semibold uppercase tracking-[0.12em] ${
-                panel === 'finish' ? 'bg-brand-green text-white' : 'text-brand-green hover:bg-brand-green/5'
-              }`}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Finish
             </button>
             <button
               type="button"
@@ -431,38 +325,6 @@ export function ProductViewer({ onClose }: ProductViewerProps) {
                     {preset}
                   </button>
                 ))}
-              </div>
-            )}
-
-            {panel === 'finish' && (
-              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between">
-                <div className="text-center sm:text-left">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-green">
-                    {selectedSurface ? selectedSurface.label : 'Select a surface on the chair'}
-                  </p>
-                  <p className="mt-1 text-[10px] text-gray-500">
-                    {selectedSurface ? 'Finish changes affect only the selected surface.' : 'Click the model, then choose a finish.'}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {FINISHES.map((finish) => (
-                    <button
-                      key={finish.key}
-                      type="button"
-                      disabled={!selectedSurface}
-                      onClick={() => applyFinish(finish.key, finish.color)}
-                      title={finish.label}
-                      aria-label={finish.label}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 shadow-sm transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-35 ${
-                        finish.key === 'original' ? 'border-dashed border-brand-green/50 bg-white' : 'border-white'
-                      }`}
-                      style={finish.key === 'original' ? undefined : { backgroundColor: finish.color }}
-                    >
-                      {finish.key === 'original' && <span className="text-[9px] font-bold text-brand-green">↺</span>}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
