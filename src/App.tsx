@@ -4,103 +4,13 @@
  */
 /// <reference types="vite/client" />
 
-import { useState, useRef, Suspense, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, ShoppingBag, User, Cuboid, Moon, Sun, X, SunMedium, Sliders } from 'lucide-react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Environment, PresentationControls, ContactShadows, useGLTF, Center, Html, Lightformer } from '@react-three/drei';
-import * as THREE from 'three';
-import { ErrorBoundary } from 'react-error-boundary';
-import dayImageImport from './assets/day.png';
-import nightImageImport from './assets/night.png';
-import modelUrlImport from './assets/model.glb';
+import { Search, ShoppingBag, User, Cuboid, Moon, Sun } from 'lucide-react';
+import { ProductViewer } from './components/ProductViewer';
 
-const dayImage = dayImageImport;
-const nightImage = nightImageImport;
-const modelUrl = modelUrlImport;
-
-// --- Fallback 3D Component ---
-function FallbackShape() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  useFrame((state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.2;
-      meshRef.current.rotation.x += delta * 0.1;
-    }
-  });
-
-  return (
-    <mesh ref={meshRef} scale={1.2}>
-      <torusKnotGeometry args={[1.2, 0.4, 128, 32]} />
-      <meshPhysicalMaterial 
-        color="#0a2e24" 
-        metalness={0.2} 
-        roughness={0.1} 
-        transmission={0.9} 
-        thickness={0.5}
-        envMapIntensity={2}
-        clearcoat={1}
-      />
-    </mesh>
-  );
-}
-
-// --- 3D Model Component ---
-function Model() {
-  const { scene } = useGLTF(modelUrl);
-
-  const processedScene = useMemo(() => {
-    const cloned = scene.clone(true);
-
-    cloned.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-
-        if (Array.isArray(mesh.material)) {
-          mesh.material = mesh.material.map((material) => material.clone());
-        } else if (mesh.material) {
-          mesh.material = mesh.material.clone();
-        }
-      }
-    });
-
-    return cloned;
-  }, [scene]);
-
-  const groupRef = useRef<THREE.Group>(null);
-  useFrame((state, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.03;
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      <Center>
-        <primitive object={processedScene} scale={50} />
-      </Center>
-    </group>
-  );
-}
-
-useGLTF.preload(modelUrl);
-
-function CanvasLoader() {
-  return (
-    <Html center>
-      <div className="flex flex-col items-center justify-center gap-3">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-10 h-10 border-4 border-brand-green/20 border-t-brand-green/80 rounded-full"
-        />
-        <span className="text-brand-green/80 text-sm font-medium tracking-wider">LOADING</span>
-      </div>
-    </Html>
-  );
-}
+const dayImage = '/hero-day.png';
+const nightImage = '/hero-night.png';
 
 const slides = [
   {
@@ -131,7 +41,6 @@ export default function App() {
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
   const [show3D, setShow3D] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [lightIntensity, setLightIntensity] = useState(1.0);
 
   const slideImages = [
     isDarkMode ? nightImage : dayImage,
@@ -203,6 +112,18 @@ export default function App() {
                   animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
                 }} className="mt-8 self-start px-8 py-3.5 bg-black/20 hover:bg-black/30 text-white text-sm font-medium tracking-wide rounded-xl backdrop-blur-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all duration-300">
                   EXPLORE NOW
+                </motion.button>
+                <motion.button
+                  variants={{
+                    initial: { opacity: 0, y: 20 },
+                    animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+                  }}
+                  type="button"
+                  onClick={() => setShow3D(true)}
+                  className="mt-3 flex self-start items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-xs font-semibold text-white backdrop-blur-sm md:hidden"
+                >
+                  <Cuboid className="h-4 w-4" />
+                  VIEW IN 3D
                 </motion.button>
               </motion.div>
             </AnimatePresence>
@@ -359,72 +280,10 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-0 w-full h-full bg-gradient-to-br from-[#d4dcd2] to-[#b3c2ae] flex items-center justify-center"
+                transition={{ duration: 0.35 }}
+                className="absolute inset-0 h-full w-full"
               >
-                <Canvas camera={{ position: [0, 0, 4], fov: 45 }} gl={{ preserveDrawingBuffer: true, antialias: true }}>
-                  <ambientLight intensity={0.8 * lightIntensity} />
-                  <directionalLight position={[5, 8, 5]} intensity={1.2 * lightIntensity} />
-                  <directionalLight position={[-5, 5, -5]} intensity={0.5 * lightIntensity} color="#e0e8ff" />
-                  <spotLight position={[10, 10, 10]} angle={0.2} penumbra={1} intensity={1.5 * lightIntensity} />
-                  <PresentationControls 
-                      global
-                      rotation={[0, -Math.PI / 4, 0]}
-                      polar={[-Math.PI / 4, Math.PI / 4]}
-                      azimuth={[-Math.PI / 2, Math.PI / 2]}
-                      snap
-                      damping={0.2}
-                    >
-                      <ErrorBoundary fallback={<FallbackShape />}>
-                        <Suspense fallback={<CanvasLoader />}>
-                          <Model />
-                        </Suspense>
-                      </ErrorBoundary>
-                    </PresentationControls>
-                    <Environment resolution={256}>
-                      <group rotation={[-Math.PI / 3, 0, 1]}>
-                        <Lightformer form="rect" intensity={2 * lightIntensity} color="#ffffff" position={[0, 5, -9]} scale={[10, 10, 1]} target={[0, 0, 0]} />
-                        <Lightformer form="ring" intensity={1.5 * lightIntensity} color="#e6f0fa" position={[-5, 2, -1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
-                        <Lightformer form="rect" intensity={1 * lightIntensity} color="#ffffff" position={[10, 0, 1]} scale={[10, 10, 1]} target={[0, 0, 0]} />
-                      </group>
-                    </Environment>
-                    <ContactShadows position={[0, -1.5, 0]} opacity={0.4} scale={10} blur={2} far={4} />
-                  </Canvas>
-                
-                {/* Overlay Lighting Slider & 3D Info Controls */}
-                <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 z-20 pointer-events-none">
-                  {/* Light Intensity Slider Panel */}
-                  <div className="pointer-events-auto bg-white/75 backdrop-blur-md border border-white/80 p-3.5 px-5 rounded-2xl text-brand-green shadow-xl flex items-center gap-4 min-w-[280px]">
-                    <div className="flex items-center gap-2 font-semibold text-xs shrink-0">
-                      <SunMedium className="w-4 h-4 text-brand-green/80" />
-                      <span>Light Intensity:</span>
-                      <span className="font-bold text-brand-green min-w-[36px]">{Math.round(lightIntensity * 100)}%</span>
-                    </div>
-                    <input 
-                      type="range" 
-                      min="0.1" 
-                      max="2.5" 
-                      step="0.05"
-                      value={lightIntensity}
-                      onChange={(e) => setLightIntensity(parseFloat(e.target.value))}
-                      className="w-full accent-brand-green cursor-pointer h-1.5 bg-brand-green/20 rounded-lg appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-brand-green [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
-                    />
-                  </div>
-
-                  {/* Info & Close 3D Button */}
-                  <div className="pointer-events-auto p-3.5 px-5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 text-brand-green text-xs shadow-xl flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-semibold mb-0.5">3D Viewer Active</p>
-                      <p className="text-gray-700">Drag to rotate the model.</p>
-                    </div>
-                    <button 
-                      onClick={() => setShow3D(false)}
-                      className="px-3.5 py-2 bg-brand-green text-white text-xs font-semibold rounded-xl hover:bg-brand-green/90 transition-all shrink-0 cursor-pointer shadow-md hover:scale-105 active:scale-95"
-                    >
-                      Close 3D
-                    </button>
-                  </div>
-                </div>
+                <ProductViewer onClose={() => setShow3D(false)} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -484,6 +343,21 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {show3D && (
+          <motion.div
+            key="mobile-3d-viewer"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[100] bg-[#d9e0d7] md:hidden"
+          >
+            <ProductViewer onClose={() => setShow3D(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
