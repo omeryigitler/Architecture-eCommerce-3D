@@ -55,7 +55,8 @@ export default function App() {
 
   const slide = slides[currentSlide];
 
-  return (
+  return (<>
+
     <div className="min-h-screen flex items-center justify-center p-4 md:p-8">
       {/* Main Container - Hero Card */}
       <div className="relative w-full max-w-[1200px] h-[750px] rounded-3xl overflow-hidden shadow-2xl shadow-black/20 flex flex-col md:flex-row">
@@ -346,5 +347,7 @@ export default function App() {
       </div>
 
     </div>
+<footer className="relative w-full px-4 py-4 text-center bg-[#d9e0d7] text-[#174b3a]"><a href="https://omeryigitler.com" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] max-w-full flex-wrap items-center justify-center gap-x-1 text-xs leading-relaxed underline-offset-4 transition-colors hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 motion-reduce:transition-none"><span>Designed &amp; developed by</span> <span className="font-medium">Ömer YİĞİTLER</span><span aria-hidden="true"> ↗</span></a></footer>
+    </>
   );
 }
